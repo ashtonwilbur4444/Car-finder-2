@@ -4,13 +4,14 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import re
-import toml
 from datetime import datetime, timedelta
 
 # Load secrets
-secrets = toml.load("secrets.toml")
-MMR_USERNAME = secrets['mmr']['username']
-MMR_PASSWORD = secrets['mmr']['password']
+import streamlit as st
+
+username = st.secrets["mmr"]["username"]
+password = st.secrets["mmr"]["password"]
+
 
 # Manual exchange rate and cost buffer
 CAD_TO_USD = 0.73
