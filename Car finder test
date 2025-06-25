@@ -1,0 +1,83 @@
+import streamlit as st
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import re
+import toml
+from datetime import datetime, timedelta
+
+st.set_page_config(page_title="Car Finder", layout="wide")
+st.title("🚗 Car Finder — Final Export-Ready Build")
+
+# Load credentials securely
+with open(".streamlit/secrets.toml") as f:
+    secrets = toml.load(f)
+MMR_USERNAME = secrets["mmr"]["username"]
+MMR_PASSWORD = secrets["mmr"]["password"]
+
+st.write("MMR credentials loaded successfully.")
+
+# Exchange rate & cost buffer
+usd_to_cad = 1.35
+canadian_buffer = 2000
+
+# Profit rules by price range
+def min_profit_threshold(price):
+    if 20000 <= price < 30000:
+        return 3000
+    elif 30000 <= price < 40000:
+        return 4000
+    elif 40000 <= price < 50000:
+        return 5000
+    elif 50000 <= price < 60000:
+        return 6000
+    elif 60000 <= price < 70000:
+        return 7000
+    else:
+        return 10000
+
+# Dummy function: Replace with real MMR call
+def get_mmr_from_vin(vin):
+    if vin.startswith(('1', '4', '5')):
+        # Replace with real API call or scraping
+        return 30000
+    else:
+        return None
+
+# Dummy scraper for demonstration (no real scraping)
+def fetch_listings():
+    return pd.DataFrame([
+        {"Title": "2021 Ford F-150", "Price": 35000, "VIN": "1FTEW1EP0MFB12345", "KM": 60000, "URL": "https://example.com", "Date Listed": datetime.now()},
+        {"Title": "2022 RAM 1500", "Price": 45000, "VIN": "3C6RR7KT3NG123456", "KM": 40000, "URL": "https://example.com", "Date Listed": datetime.now() - timedelta(days=1)},
+        {"Title": "2023 Chevy Silverado", "Price": 55000, "VIN": "1GCUYDED4PZ123456", "KM": 30000, "URL": "https://example.com", "Date Listed": datetime.now() - timedelta(days=8)}
+    ])
+
+# Process listings
+df = fetch_listings()
+filtered_rows = []
+for _, row in df.iterrows():
+    vin = row["VIN"]
+    mmr = get_mmr_from_vin(vin)
+    if not mmr:
+        # Estimate fallback MMR
+        mmr = int(row["Price"] * usd_to_cad * 1.10)
+        confirmed = False
+    else:
+        confirmed = True
+
+    total_cost = row["Price"] + canadian_buffer
+    profit = mmr - total_cost
+    min_profit = min_profit_threshold(row["Price"])
+
+    if profit >= min_profit and (datetime.now() - row["Date Listed"]).days <= 7:
+        row_dict = row.to_dict()
+        row_dict["MMR"] = mmr
+        row_dict["Profit"] = profit
+        row_dict["Confirmed"] = confirmed
+        filtered_rows.append(row_dict)
+
+result_df = pd.DataFrame(filtered_rows)
+if not result_df.empty:
+    st.dataframe(result_df)
+else:
+    st.warning("No profitable vehicles found within the criteria.")
